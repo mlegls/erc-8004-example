@@ -12,7 +12,6 @@ contract ValidationEscrow {
         uint256 amount;
         uint256 expirationTime;
         uint8 minValidation;
-        bool claimed;
     }
 
     event EscrowDepositEvent(
@@ -37,6 +36,7 @@ contract ValidationEscrow {
 
     uint256 private _escrowCounter;
     mapping(uint256 => Escrow) private _escrows;
+    mapping(uint256 => bool) private _claimed;
 
     constructor(address _identityRegistry, address _validationRegistry) {
         identityRegistry = IIdentityRegistry(_identityRegistry);
@@ -89,7 +89,7 @@ contract ValidationEscrow {
         if (escrow.expirationTime < block.timestamp) {
             revert InvalidEscrow();
         }
-        if (escrow.claimed) {
+        if (_claimed[escrowId]) {
             revert InvalidEscrow();
         }
 
@@ -127,7 +127,7 @@ contract ValidationEscrow {
             revert TransferFailed();
         }
 
-        escrow.claimed = true;
+        _claimed[escrowId] = true;
         emit EscrowClaimEvent(escrowId, msg.sender);
     }
 
@@ -136,7 +136,7 @@ contract ValidationEscrow {
         if (escrow.amount == 0) {
             revert InvalidEscrow();
         }
-        if (escrow.claimed) {
+        if (_claimed[escrowId]) {
             revert InvalidEscrow();
         }
         if (msg.sender != escrow.escrower) {
@@ -151,7 +151,7 @@ contract ValidationEscrow {
             revert TransferFailed();
         }
 
-        escrow.claimed = true;
+        _claimed[escrowId] = true;
         emit EscrowReclaimEvent(escrowId, msg.sender);
     }
 
