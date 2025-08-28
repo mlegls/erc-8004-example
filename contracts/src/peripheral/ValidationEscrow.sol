@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "../interfaces/IValidationRegistry.sol";
 import "../interfaces/IIdentityRegistry.sol";
+import "../interfaces/IValidator.sol";
 
 contract ValidationEscrow {
     struct Escrow {
@@ -12,6 +13,8 @@ contract ValidationEscrow {
         uint256 amount;
         uint256 expirationTime;
         uint8 minValidation;
+        address validator;
+        bytes demand;
     }
 
     event EscrowDepositEvent(
@@ -48,7 +51,9 @@ contract ValidationEscrow {
         uint256 agentServerId,
         uint256 amount,
         uint256 expirationTime,
-        uint8 minValidation
+        uint8 minValidation,
+        address validator,
+        bytes memory demand
     ) external payable returns (uint256 escrowId_) {
         if (!identityRegistry.agentExists(agentValidatorId)) {
             revert AgentNotFound();
@@ -75,7 +80,8 @@ contract ValidationEscrow {
             amount,
             expirationTime,
             minValidation,
-            false
+            validator,
+            demand
         );
 
         emit EscrowDepositEvent(escrowId_, msg.sender);
@@ -98,6 +104,8 @@ contract ValidationEscrow {
         if (msg.sender != serverAgent.agentAddress) {
             revert UnauthorizedClaim();
         }
+
+        IValidator(escrow.validator).validate(dataHash, escrow.demand);
 
         IValidationRegistry.Request
             memory validationRequest = validationRegistry.getValidationRequest(
