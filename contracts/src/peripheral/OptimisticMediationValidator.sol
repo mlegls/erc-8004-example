@@ -12,12 +12,12 @@ contract OptimisticMediationValidator is IValidator {
     }
 
     enum MediationReponse {
+        NONE,
         ACCEPTED,
         REJECTED
     }
 
-    error InvalidDemand();
-    error DemandAlreadyExists();
+    error AwaitingMediation();
 
     event MediationRequested(
         bytes32 dataHash,
@@ -75,26 +75,29 @@ contract OptimisticMediationValidator is IValidator {
     function validate(bytes32 dataHash, bytes memory demand) external {
         DemandData memory demandData = abi.decode(demand, (DemandData));
 
-        if (
-            _responses[demandData.mediator][dataHash] ==
-            MediationReponse.ACCEPTED
-        ) {
+        MediationReponse response = _responses[demandData.mediator][dataHash];
+
+        if (response == MediationReponse.ACCEPTED) {
             validationRegistry.validationResponse(dataHash, 100);
             return;
         }
 
-        if (
-            _responses[demandData.mediator][dataHash] ==
-            MediationReponse.REJECTED
-        ) {
+        if (response == MediationReponse.REJECTED) {
             validationRegistry.validationResponse(dataHash, 0);
             return;
         }
 
-        if (block.timestamp > demandData.mediationDeadline) {
+        // If no response (NONE) and past deadline, optimistic acceptance
+        if (
+            response == MediationReponse.NONE &&
+            block.timestamp > demandData.mediationDeadline
+        ) {
             // optimistic mediation: accept by default
             validationRegistry.validationResponse(dataHash, 100);
             return;
         }
+
+        // No response and not past deadline - do not validate yet
+        revert AwaitingMediation();
     }
 }
