@@ -13,10 +13,33 @@ contract OnchainCheckValidator is IValidator {
 
     IIdentityRegistry public immutable identityRegistry;
     IValidationRegistry public immutable validationRegistry;
+    uint256 public immutable validatorAgentId;
 
-    constructor(address _identityRegistry, address _validationRegistry) {
+    uint256 private constant REGISTRATION_FEE = 0.005 ether;
+
+    constructor(
+        address _identityRegistry,
+        address _validationRegistry,
+        string memory _agentDomain
+    ) payable {
+        require(msg.value >= REGISTRATION_FEE, "Insufficient registration fee");
+
         identityRegistry = IIdentityRegistry(_identityRegistry);
         validationRegistry = IValidationRegistry(_validationRegistry);
+
+        // Self-register as validator agent
+        validatorAgentId = identityRegistry.newAgent{value: REGISTRATION_FEE}(
+            _agentDomain,
+            address(this)
+        );
+
+        // Refund excess ETH if any
+        if (msg.value > REGISTRATION_FEE) {
+            (bool success, ) = msg.sender.call{
+                value: msg.value - REGISTRATION_FEE
+            }("");
+            require(success, "Refund failed");
+        }
     }
 
     function _onchainCheck(
