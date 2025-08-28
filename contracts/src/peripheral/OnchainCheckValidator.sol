@@ -11,9 +11,6 @@ contract OnchainCheckValidator is IValidator {
         bytes data;
     }
 
-    error InvalidDemand();
-    error DemandAlreadyExists();
-
     IIdentityRegistry public immutable identityRegistry;
     IValidationRegistry public immutable validationRegistry;
 
